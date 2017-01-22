@@ -1,0 +1,156 @@
+package me.benzplayz;
+
+import java.io.PrintStream;
+import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+import net.md_5.bungee.BungeeCord;
+import net.md_5.bungee.api.config.ServerInfo;
+import net.md_5.bungee.api.connection.ProxiedPlayer;
+import net.md_5.bungee.api.connection.Server;
+
+public class Core
+{
+  public static boolean hasTime(ProxiedPlayer player)
+  {
+    Boolean hasTime = Boolean.valueOf(false);
+    try
+    {
+      ResultSet rs = Main.mysql.get("SELECT * FROM JartexOnlineTime WHERE UUID = '" + player.getUniqueId() + "';");
+      if (rs.next()) {
+        hasTime = Boolean.valueOf(true);
+      }
+      rs.close();
+    }
+    catch (SQLException e)
+    {
+      System.out.println(Main.mysql.getPrefix() + e.getMessage());
+    }
+    return hasTime.booleanValue();
+  }
+  
+  public static boolean hasTime(String name)
+  {
+    Boolean hasTime = Boolean.valueOf(false);
+    try
+    {
+      ResultSet rs = Main.mysql.get("SELECT * FROM JartexOnlineTime WHERE Player = '" + name + "';");
+      if (rs.next()) {
+        hasTime = Boolean.valueOf(true);
+      }
+      rs.close();
+    }
+    catch (SQLException e)
+    {
+      System.out.println(Main.mysql.getPrefix() + e.getMessage());
+    }
+    return hasTime.booleanValue();
+  }
+  
+  public static void updatePlayer(ProxiedPlayer player)
+  {
+    Main.mysql.create("UPDATE JartexOnlineTime SET Player = '" + player.getName() + "' WHERE UUID = '" + player.getUniqueId() + "';");
+  }
+  
+  public static void createPlayer(ProxiedPlayer player)
+  {
+    Main.mysql.create("INSERT INTO JartexOnlineTime (Player, UUID, OnlineTime) VALUES ('" + player.getName() + "', '" + player.getUniqueId() + "', '" + 0 + "');");
+  }
+  
+  public static int getPlayerTime(String name)
+  {
+    int time = 0;
+    try
+    {
+      ResultSet rs = Main.mysql.get("SELECT OnlineTime FROM JartexOnlineTime WHERE Player = '" + name + "';");
+      while (rs.next()) {
+        time = rs.getInt("OnlineTime");
+      }
+      rs.close();
+    }
+    catch (SQLException e)
+    {
+      System.out.println(Main.mysql.getPrefix() + e.getMessage());
+    }
+    return time;
+  }
+  
+  public static ArrayList<String> getTopPlayers()
+  {
+    ArrayList<String> players = new ArrayList();
+    try
+    {
+      ResultSet rs = Main.mysql.get("SELECT * FROM JartexOnlineTime ORDER BY OnlineTime DESC LIMIT 10;");
+      while (rs.next()) {
+        players.add(rs.getString("Player") + "," + rs.getInt("OnlineTime"));
+      }
+      rs.close();
+    }
+    catch (SQLException e)
+    {
+      System.out.println(Main.mysql.getPrefix() + e.getMessage());
+    }
+    return players;
+  }
+  
+  public static void savePlayerTimes()
+  {
+    try
+    {
+      Statement s = Main.mysql.getConnection().createStatement();
+      for (ProxiedPlayer all : BungeeCord.getInstance().getPlayers()) {
+        if (!Main.disabledservers.contains(all.getServer().getInfo().getName())) {
+          s.addBatch("UPDATE JartexOnlineTime SET OnlineTime = OnlineTime + 1 WHERE UUID = '" + all.getUniqueId() + "';");
+        }
+      }
+      s.executeBatch();
+      s.close();
+    }
+    catch (SQLException e)
+    {
+      System.out.println(Main.mysql.getPrefix() + e.getMessage());
+    }
+  }
+  
+  public static String getDate()
+  {
+    DateFormat dateformat = new SimpleDateFormat("dd/MM/yyyy");
+    Date date = new Date();
+    return dateformat.format(date);
+  }
+  
+  public static String translateMessage(String message)
+  {
+    return message;
+  }
+  
+  public static String translateMessage1(String message, String name)
+  {
+    return message.replace("%PLAYER%", name);
+  }
+  
+  public static String translateMessage2(String message, String date)
+  {
+    return message.replace("%DATE%", date);
+  }
+  
+  public static String translateMessage(String message, Integer time, String name)
+  {
+    int hours = time.intValue() / 60;
+    int minutes = time.intValue() % 60;
+    return message.replace("%HOURS%", String.valueOf(hours)).replace("%MINUTES%", String.valueOf(minutes)).replace("%PLAYER%", name);
+  }
+  
+  public static String translateMessage(String message, Integer time, String name, String date)
+  {
+    int hours = time.intValue() / 60;
+    int minutes = time.intValue() % 60;
+    return message.replace("%HOURS%", String.valueOf(hours)).replace("%MINUTES%", String.valueOf(minutes)).replace("%PLAYER%", name).replace("%DATE%", date);
+  }
+}
